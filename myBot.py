@@ -1,4 +1,5 @@
 import asyncio
+import os
 import sqlite3
 from aiogram import Bot, Dispatcher, F, types
 from aiogram.filters import Command
@@ -6,8 +7,13 @@ from aiogram.types import ReplyKeyboardMarkup, KeyboardButton
 
 
 # --- 1. НАСТРОЙКИ ---
-TOKEN = "8721151885:AAG4zCeO7chrLWc-UYKZdiPUSZPU59wTi60"
-ADMIN_ID = 5166737197 
+TOKEN = os.environ.get("BOT_TOKEN", "")
+ADMIN_ID = int(os.environ.get("ADMIN_ID", "0"))
+
+if not TOKEN:
+    raise ValueError("BOT_TOKEN environment variable is required")
+if not ADMIN_ID:
+    raise ValueError("ADMIN_ID environment variable is required")
 
 bot = Bot(token=TOKEN)
 dp = Dispatcher()
