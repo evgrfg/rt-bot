@@ -78,7 +78,7 @@ async def list_topics(m: types.Message):
     if rows:
         builder = []
         for r in rows:
-            topic = r[0]
+            topic = str(r[0]) # Берем именно ПЕРВЫЙ элемент и превращаем в текст
             builder.append([InlineKeyboardButton(text=topic, callback_data=f"get_{topic}")])
         keyboard = InlineKeyboardMarkup(inline_keyboard=builder)
         await m.answer("📚 **Выбери тему:**", reply_markup=keyboard)
