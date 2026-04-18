@@ -1,6 +1,8 @@
 import asyncio
 import os
 import sqlite3
+import threading
+from http.server import HTTPServer, BaseHTTPRequestHandler
 from aiogram import Bot, Dispatcher, F, types
 from aiogram.filters import Command
 from aiogram.types import ReplyKeyboardMarkup, KeyboardButton
@@ -193,10 +195,38 @@ async def handle_all(m: types.Message):
         if m.from_user.id != ADMIN_ID:
             await m.answer("Этого нет в базе, я передал вопрос старосте!")
 
-# --- 4. ЗАПУСК ---
+# --- 4. HEALTH CHECK SERVER ---
+class HealthHandler(BaseHTTPRequestHandler):
+    def do_GET(self):
+        self.send_response(200)
+        self.send_header('Content-Type', 'text/plain')
+        self.send_header('Content-Length', '2')
+        self.send_header('Connection', 'close')
+        self.end_headers()
+        self.wfile.write(b'OK')
+    
+    def log_message(self, format, *args):
+        pass  # Suppress log output
+
+def start_health_server():
+    server = HTTPServer(('0.0.0.0', 8000), HealthHandler)
+    server.serve_forever()
+
+# --- 5. ЗАПУСК ---
 async def main():
+    print("Initializing database...")
     init_db()
+    print("Deleting webhook...")
     await bot.delete_webhook(drop_pending_updates=True)
+    
+    # Start health check server in a separate thread
+    print("Starting health check server on 0.0.0.0:8000...")
+    health_thread = threading.Thread(target=start_health_server, daemon=True)
+    health_thread.start()
+    print("Health check server started!")
+    
+    # Run bot polling
+    print("Starting bot polling...")
     await dp.start_polling(bot)
 
 if __name__ == "__main__":
