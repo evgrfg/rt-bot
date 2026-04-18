@@ -81,18 +81,24 @@ async def send_topic_data(callback: types.CallbackQuery):
 async def list_topics(m: types.Message):
     conn = sqlite3.connect('base.db')
     cursor = conn.cursor()
-    cursor.execute("SELECT DISTINCT keyword FROM knowledge ORDER BY keyword")
+    cursor.execute("SELECT DISTINCT keyword FROM knowledge")
     rows = cursor.fetchall()
     conn.close()
     
     if rows:
         builder = []
         for r in rows:
-            full_key = r[0] # Исправлено: берем текст из кортежа правильно
-            display = (full_key[:30] + '..') if len(full_key) > 30 else full_key
-            # Для callback берем только первое слово, чтобы не было ошибок с запятыми
-            call_data = full_key.split(',')[0].strip()[:20]
-            builder.append([InlineKeyboardButton(text=display, callback_data=f"get_{call_data}")])
+            # ОЧЕНЬ ВАЖНО: Чистим название темы от скобок, кавычек и запятых
+            topic = str(r[0]).replace("(", "").replace(")", "").replace("'", "").replace(",", "").strip()
+            
+            # Если тема вдруг пустая после чистки - пропускаем
+            if not topic: continue
+            
+            # Создаем кнопку. callback_data делаем коротким (до 15 символов)
+            builder.append([InlineKeyboardButton(
+                text=topic[:30], 
+                callback_data=f"get_{topic[:15]}"
+            )])
         
         keyboard = InlineKeyboardMarkup(inline_keyboard=builder)
         await m.answer("📚 **Выбери тему из списка:**", reply_markup=keyboard)
