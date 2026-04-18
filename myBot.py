@@ -101,12 +101,21 @@ async def start(m: types.Message):
 async def list_topics(m: types.Message):
     conn = sqlite3.connect('base.db')
     cursor = conn.cursor()
-    cursor.execute("SELECT DISTINCT keyword FROM knowledge")
+    # Берем уникальные темы в алфавитном порядке
+    cursor.execute("SELECT DISTINCT keyword FROM knowledge ORDER BY keyword")
     rows = cursor.fetchall()
     conn.close()
+
     if rows:
-        text = "📚 **Доступные темы:**\n\n" + "\n".join([f"• {r[0]}" for r in rows])
-        await m.answer(text, parse_mode="Markdown")
+        # Создаем клавиатуру с кнопками
+        builder = []
+        for r in rows:
+            topic_name = r[0]
+            # Создаем кнопку для каждой темы
+            builder.append([InlineKeyboardButton(text=topic_name, callback_data=f"get_{topic_name}")])
+
+        keyboard = InlineKeyboardMarkup(inline_keyboard=builder)
+        await m.answer("📚 **Выбери интересующую тему:**", reply_markup=keyboard, parse_mode="Markdown")
     else:
         await m.answer("База пока пуста.")
 
@@ -160,6 +169,23 @@ async def list_via_button(m: types.Message):
 async def help_via_button(m: types.Message):
     await m.answer("Если нужной темы нет в списке — просто напиши её название боту. "
                    "Староста получит уведомление и добавит ответ!")
+
+@dp.callback_query(F.data.startswith("get_"))
+async def send_topic_data(callback: types.CallbackQuery):
+    # Достаем название темы из данных кнопки
+    topic_name = callback.data.replace("get_", "")
+
+    # Используем нашу уже готовую функцию поиска
+    results = get_all_answers(topic_name)
+
+    if results:
+        for content, f_type in results:
+            if f_type == "text": await callback.message.answer(content)
+            elif f_type == "doc": await callback.message.answer_document(content)
+            elif f_type == "photo": await callback.message.answer_photo(content)
+
+    # Убираем "часики" с кнопки в Telegram
+    await callback.answer()
 
 @dp.message()
 async def handle_all(m: types.Message):
