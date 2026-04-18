@@ -64,7 +64,7 @@ def add_answer(keyword, content, file_type):
 async def start(m: types.Message):
     kb = [[KeyboardButton(text="📚 Список тем"), KeyboardButton(text="ℹ️ Помощь")]]
     keyboard = ReplyKeyboardMarkup(keyboard=kb, resize_keyboard=True)
-    await m.answer("👋 Я в сети! Нажми на кнопку или напиши тему.", reply_markup=keyboard)
+    await m.answer("👋 Привет! Нажми на кнопку или напиши тему.", reply_markup=keyboard)
 
 @dp.message(F.text == "📚 Список тем")
 @dp.message(Command("list"))
@@ -78,12 +78,15 @@ async def list_topics(m: types.Message):
     if rows:
         builder = []
         for r in rows:
-            topic = str(r[0]) # Берем именно ПЕРВЫЙ элемент и превращаем в текст
-            builder.append([InlineKeyboardButton(text=topic, callback_data=f"get_{topic}")])
+            # [0] - берет само слово из (слово,)
+            # [:30] - обрезает слишком длинные названия, чтобы кнопка влезла
+            topic_name = str(r[0])[:30] 
+            builder.append([InlineKeyboardButton(text=topic_name, callback_data=f"get_{topic_name}")])
+        
         keyboard = InlineKeyboardMarkup(inline_keyboard=builder)
-        await m.answer("📚 **Выбери тему:**", reply_markup=keyboard)
+        await m.answer("📚 **Выбери тему из списка:**", reply_markup=keyboard)
     else:
-        await m.answer("База пока пуста.")
+        await m.answer("База пока пуста. Напиши тему, чтобы я её выучил!")
 
 @dp.callback_query(F.data.startswith("get_"))
 async def send_topic_data(callback: types.CallbackQuery):
