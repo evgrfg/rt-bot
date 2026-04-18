@@ -77,7 +77,7 @@ async def send_topic_data(callback: types.CallbackQuery):
     await callback.answer()
 
 @dp.message(F.text == "📚 Список тем")
-@dp.message(Command("list"))
+@dp.message(lambda m: "Список тем" in m.text or m.text == "/list")
 async def list_topics(m: types.Message):
     conn = sqlite3.connect('base.db')
     cursor = conn.cursor()
@@ -105,9 +105,9 @@ async def list_topics(m: types.Message):
     else:
         await m.answer("База пока пуста. Напиши тему, чтобы я её выучил!")
 
-@dp.message(F.text == "ℹ️ Помощь")
-async def help_cmd(m: types.Message):
-    await m.answer("📖 **Как пользоваться:**\n1. Нажми 'Список тем' и выбери нужную.\n2. Или просто напиши название предмета.\n3. Если ответа нет, я передам вопрос старосте!")
+@dp.message(lambda m: "Помощь" in m.text)
+async def help_via_button(m: types.Message):
+    await m.answer("📖 Напиши название темы, и я пришлю материалы. Если темы нет в списке — староста получит уведомление!")
 
 @dp.message(F.from_user.id == ADMIN_ID, F.reply_to_message)
 async def admin_reply(m: types.Message):
@@ -125,6 +125,9 @@ async def admin_reply(m: types.Message):
 @dp.message()
 async def handle_all(m: types.Message):
     if not m.text: return
+    # Если это похоже на кнопку или команду — игнорируем здесь (пусть работают функции выше)
+    if "Список тем" in m.text or "Помощь" in m.text or m.text.startswith("/"):
+        return
     
     results = get_all_answers(m.text)
     if results:
