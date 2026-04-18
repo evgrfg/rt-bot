@@ -78,15 +78,37 @@ async def list_topics(m: types.Message):
     if rows:
         builder = []
         for r in rows:
-            # [0] - берет само слово из (слово,)
-            # [:30] - обрезает слишком длинные названия, чтобы кнопка влезла
-            topic_name = str(r[0])[:30] 
-            builder.append([InlineKeyboardButton(text=topic_name, callback_data=f"get_{topic_name}")])
+            full_keyword = r[0] # Достаем текст из кортежа
+            # Для текста на кнопке берем всё (до 30 символов)
+            display_name = full_keyword[:30]
+            # А для "мозгов" кнопки берем только первое слово (до запятой) и убираем пробелы
+            callback_name = full_keyword.split(',')[0].strip()[:20]
+            
+            builder.append([InlineKeyboardButton(
+                text=display_name, 
+                callback_data=f"get_{callback_name}"
+            )])
         
         keyboard = InlineKeyboardMarkup(inline_keyboard=builder)
-        await m.answer("📚 **Выбери тему из списка:**", reply_markup=keyboard)
+        await m.answer("📚 **Выбери тему:**", reply_markup=keyboard)
     else:
-        await m.answer("База пока пуста. Напиши тему, чтобы я её выучил!")
+        await m.answer("База пока пуста.")
+
+@dp.callback_query(F.data.startswith("get_"))
+async def send_topic_data(callback: types.CallbackQuery):
+    # Достаем то самое "первое слово"
+    short_key = callback.data.replace("get_", "").lower().strip()
+    
+    # Ищем в базе ответ, где это слово встречается
+    results = get_all_answers(short_key)
+    
+    if results:
+        for content, f_type in results:
+            if f_type == "text": await callback.message.answer(content)
+            elif f_type == "doc": await callback.message.answer_document(content)
+            elif f_type == "photo": await callback.message.answer_photo(content)
+    
+    await callback.answer()
 
 @dp.callback_query(F.data.startswith("get_"))
 async def send_topic_data(callback: types.CallbackQuery):
