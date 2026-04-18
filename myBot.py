@@ -73,6 +73,17 @@ async def list_topics(m: types.Message):
     else:
         await m.answer("База пока пуста. Напиши тему, чтобы я её выучил!")
 
+# --- БЛОК ПОМОЩИ ---
+@dp.message(F.text.contains("Помощь"))
+async def help_cmd(m: types.Message):
+    await m.answer(
+        "📖 **Шпаргалка по боту:**\n\n"
+        "1️⃣ **Кнопка 'Список тем'** — покажет всё, что бот уже знает (нажимай на кнопки-предметы).\n"
+        "2️⃣ **Просто напиши слово** (например, 'матан') — если ответ есть, бот его сразу скинет.\n"
+        "3️⃣ **Если ответа нет** — бот перешлет твой вопрос старосте, и она добавит инфу.\n\n"
+        "✨ Всё просто!"
+    )
+
 @dp.message(Command("clear"), F.from_user.id == ADMIN_ID)
 async def clear_topic(m: types.Message):
     topic = m.text.replace("/clear ", "").lower().strip()
