@@ -27,7 +27,7 @@ def run_health_check():
 
 # --- БАЗА ДАННЫХ ---
 def init_db():
-    conn = sqlite3.connect('base.db')
+    conn = sqlite3.connect('/data/base.db')
     cursor = conn.cursor()
     cursor.execute('CREATE TABLE IF NOT EXISTS knowledge (keyword TEXT, content TEXT, file_type TEXT)')
     cursor.execute('CREATE TABLE IF NOT EXISTS queue (keyword TEXT, user_id INTEGER)')
@@ -35,7 +35,7 @@ def init_db():
     conn.close()
 
 def get_all_answers(user_text):
-    conn = sqlite3.connect('base.db')
+    conn = sqlite3.connect('/data/base.db')
     cursor = conn.cursor()
     cursor.execute("SELECT keyword, content, file_type FROM knowledge")
     rows = cursor.fetchall()
@@ -49,7 +49,7 @@ def get_all_answers(user_text):
     return results
 
 def add_answer(keyword, content, file_type):
-    conn = sqlite3.connect('base.db')
+    conn = sqlite3.connect('/data/base.db')
     cursor = conn.cursor()
     clean_key = keyword.replace("❓ Новый вопрос:", "").split("\n")[0].strip().lower()
     cursor.execute("INSERT INTO knowledge VALUES (?, ?, ?)", (clean_key, content, file_type))
@@ -79,7 +79,7 @@ async def send_topic_data(callback: types.CallbackQuery):
 @dp.message(F.text == "📚 Список тем")
 @dp.message(lambda m: "Список тем" in m.text or m.text == "/list")
 async def list_topics(m: types.Message):
-    conn = sqlite3.connect('base.db')
+    conn = sqlite3.connect('/data/base.db')
     cursor = conn.cursor()
     cursor.execute("SELECT DISTINCT keyword FROM knowledge")
     rows = cursor.fetchall()
@@ -121,6 +121,29 @@ async def admin_reply(m: types.Message):
     
     add_answer(q_text, content, f_type)
     await m.answer(f"✅ Сохранено для темы: {q_text}")
+
+# Команда для удаления темы (напиши в ТГ: /clear название_темы)
+@dp.message(Command("clear"), F.from_user.id == ADMIN_ID)
+async def clear_topic(m: types.Message):
+    topic = m.text.replace("/clear ", "").lower().strip()
+    if not topic: return await m.answer("Напиши: /clear название")
+    
+    conn = sqlite3.connect('/data/base.db')
+    cursor = conn.cursor()
+    cursor.execute("DELETE FROM knowledge WHERE keyword LIKE ?", (f"%{topic}%",))
+    conn.commit()
+    conn.close()
+    await m.answer(f"🗑 Тема '{topic}' полностью удалена!")
+
+# Команда для удаления ОДНОГО последнего ответа (если пришло 2 одинаковых)
+@dp.message(Command("delete_last"), F.from_user.id == ADMIN_ID)
+async def delete_last(m: types.Message):
+    conn = sqlite3.connect('/data/base.db')
+    cursor = conn.cursor()
+    cursor.execute("DELETE FROM knowledge WHERE rowid = (SELECT MAX(rowid) FROM knowledge)")
+    conn.commit()
+    conn.close()
+    await m.answer("🎯 Последняя запись в базе удалена!")
 
 @dp.message()
 async def handle_all(m: types.Message):
