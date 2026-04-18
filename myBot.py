@@ -143,9 +143,7 @@ async def admin_reply(m: types.Message):
     elif m.text:
         add_answer(q_text, m.text, "text")
         await m.answer(f"✅ Текст добавлен в тему: {q_text}")
-    
-    # Плюс рассылка всем ожидающим (этот кусок у тебя уже есть ниже)
-    
+ 
     # Рассылка всем, кто ждал этот конкретный ответ
     waiting_users = get_and_clear_queue(q_text)
     count = 0
