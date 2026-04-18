@@ -1,5 +1,4 @@
-import asyncio, sqlite3, os, threading
-from http.server import HTTPServer, BaseHTTPRequestHandler
+import asyncio, sqlite3, os
 from aiogram import Bot, Dispatcher, F, types
 from aiogram.filters import Command
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, ReplyKeyboardMarkup, KeyboardButton
@@ -7,12 +6,13 @@ from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, ReplyKeybo
 # 1. Настройки
 TOKEN = os.getenv("BOT_TOKEN")
 ADMIN_ID = int(os.getenv("ADMIN_ID"))
-DB_PATH = '/data/base.db' # ПУТЬ К "СЕЙФУ"
+# Путь к базе в "сейфе" Amvera
+DB_PATH = '/data/base.db'
 
 bot = Bot(token=TOKEN)
 dp = Dispatcher()
 
-# --- БАЗА ДАННЫХ (с новым путем) ---
+# --- БАЗА ДАННЫХ ---
 def init_db():
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
@@ -50,7 +50,7 @@ def add_answer(keyword, content, file_type):
 async def start(m: types.Message):
     kb = [[KeyboardButton(text="📚 Список тем"), KeyboardButton(text="ℹ️ Помощь")]]
     keyboard = ReplyKeyboardMarkup(keyboard=kb, resize_keyboard=True)
-    await m.answer("👋 Бот обновлен! Теперь база в безопасности.", reply_markup=keyboard)
+    await m.answer("👋 Бот запущен! База данных теперь в безопасности.", reply_markup=keyboard)
 
 @dp.message(F.text == "📚 Список тем")
 @dp.message(Command("list"))
@@ -63,9 +63,11 @@ async def list_topics(m: types.Message):
     if rows:
         builder = []
         for r in rows:
-            full_key = str(r[0])
-            display = full_key.split(',')[0].strip().capitalize() # Красивое имя
-            builder.append([InlineKeyboardButton(text=display, callback_data=f"get_{full_key.split(',')[0].strip()}")])
+            full_key = r[0] # Берем текст из кортежа
+            display = full_key.split(',')[0].strip().capitalize()
+            # Ограничиваем callback_data, чтобы Telegram не ругался
+            call_data = full_key.split(',')[0].strip()[:20]
+            builder.append([InlineKeyboardButton(text=display, callback_data=f"get_{call_data}")])
         keyboard = InlineKeyboardMarkup(inline_keyboard=builder)
         await m.answer("📚 **Выбери предмет:**", reply_markup=keyboard)
     else:
@@ -97,10 +99,15 @@ async def admin_reply(m: types.Message):
     parent_msg = m.reply_to_message.text or m.reply_to_message.caption
     if not parent_msg or "Новый вопрос:" not in parent_msg: return
     q_text = parent_msg.replace("❓ Новый вопрос:", "").split("\n")[0].strip().lower()
-    content = m.document.file_id if m.document else (m.photo[-1].file_id if m.photo else m.text)
-    f_type = "doc" if m.document else ("photo" if m.photo else "text")
-    add_answer(q_text, content, f_type)
-    await m.answer(f"✅ Сохранено в /data!")
+    
+    if m.document:
+        add_answer(q_text, m.document.file_id, "doc")
+    elif m.photo:
+        add_answer(q_text, m.photo[-1].file_id, "photo")
+    elif m.text:
+        add_answer(q_text, m.text, "text")
+        
+    await m.answer(f"✅ Сохранено!")
 
 @dp.message()
 async def handle_all(m: types.Message):
@@ -114,7 +121,7 @@ async def handle_all(m: types.Message):
     else:
         if m.from_user.id != ADMIN_ID:
             await m.answer("Этого нет в базе, передал старосте!")
-        await bot.send_message(ADMIN_ID, f"❓ Новый вопрос: {m.text}\n\nОтветь на это сообщение.")
+        await bot.send_message(ADMIN_ID, f"❓ Новый вопрос: {m.text}\n\nСделай Reply.")
 
 async def main():
     init_db()
